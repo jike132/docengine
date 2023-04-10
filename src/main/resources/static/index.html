@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>测试方法</title>
+    <script src="js/docx-preview.min.js" type="text/javascript"></script>
+    <!--optional polyfill for promise-->
+    <script src="https://unpkg.com/promise-polyfill/dist/polyfill.min.js"></script>
+    <!--lib uses jszip-->
+    <script src="https://unpkg.com/jszip/dist/jszip.min.js"></script>
+
+</head>
+<body>
+<div id="container"></div>
+<script>
+
+    docx.renderAsync(
+        test, // could be any type that supported by JSZip.loadAsync
+        document.getElementById("container")
+
+
+    )
+</script>
+</body>
+</html>

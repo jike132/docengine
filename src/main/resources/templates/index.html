@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="referrer" content="no-referrer"/>
+    <title>报表引擎</title>
+    <script src="js/docx-preview.min.js" type="text/javascript"></script>
+    <script src="js/base64.js" type="text/javascript"></script>
+    <!--optional polyfill for promise-->
+    <!--    <script src="https://unpkg.com/promise-polyfill/dist/polyfill.min.js" async></script>-->
+    <!--    &lt;!&ndash;lib uses jszip&ndash;&gt;-->
+    <!--    <script src="https://unpkg.com/jszip/dist/jszip.min.js" async></script>-->
+    <script src="webjars/jquery/dist/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/jquery-form/form@4.2.2/dist/jquery.form.min.js"></script>
+    <script src="bootstrap-3.4.1/js/bootstrap.min.js"></script>
+    <script src="layer/layer.js" type="text/javascript"></script>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"
+            crossorigin="anonymous"></script>
+    <script src="ueditor/ueditor.config.js" type="text/javascript"></script>
+    <script src="ueditor/ueditor.all.js" type="text/javascript"></script>
+    <!--    <link rel="stylesheet" href="bootstrap-3.4.1/css/bootstrap-theme.min.css" type="text/css"/>-->
+    <link rel="stylesheet" href="bootstrap-3.4.1/css/bootstrap.min.css" type="text/css"/>
+    <link rel="stylesheet" href="css/common.css" type="text/css"/>
+</head>
+<body>
+<div class="header">
+    <div id="logo">
+        <img src="./img/logo.png" id="img" onclick="javascript:window.location.href='/index'" style="cursor: pointer;"><span onclick="javascript:window.location.href='/report'" style="right: 20px;position: absolute;cursor: pointer;color: blue;">报表管理</span>
+    </div>
+</div>
+</div>
+<hr style="position: absolute;
+top: 70px;
+width: 100%;"/>
+<div class="content">
+    <div id="left">
+        <div class="title"><img src="./img/list.svg" style="width: 35px;padding-right: 10px;"/>文档列表</div>
+        <div id="list">
+
+        </div>
+    </div>
+    <div class="right">
+        <div class="tab">
+            <div class="nav">
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item">文档列表</li>
+                        <li class="breadcrumb-item active" aria-current="page" id="page"></li>
+                    </ol>
+                </nav>
+            </div>
+            <div class="fun">
+                <div class="imb"><img src="./img/save.svg" onclick="save()" style="width: 45px;" class="btn btn-light"
+                /></div>
+                <div class="imb"><img src="./img/upload.svg" data-toggle="modal" data-target="#exampleModal"
+                                      class="btn btn-light" style="width: 45px;"/></div>
+                <div class="imb"><img src="./img/download.svg" onclick="downloadDoc()" class="btn btn-light" style="width: 45px;"/></div>
+            </div>
+        </div>
+        <hr/>
+        <div style="width: 80%;margin: 10px;">
+            <form id="">
+                <div class="form-group">
+                    <label>模板名称</label>
+                    <input type="text" class="form-control" id="tname" name="name"/>
+                </div>
+                <div class="form-group">
+                    <label>模板内容</label>
+                    <div id="container">
+                    </div>
+                </div>
+
+            </form>
+        </div>
+    </div>
+    <!-- Modal -->
+    <div class="modal fade" id="exampleModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="exampleModalLabel">上传模板</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <form id="form" enctype="multipart/form-data">
+                    <div class="modal-body">
+
+                        <div class="form-group">
+                            <label for="name">模板名称</label>
+                            <input type="text" class="form-control" id="name" name="name"/>
+                        </div>
+                        <div class="form-group">
+                            <label for="file">模板文件</label>
+                            <input type="file" class="form-control-file" id="file" name="file" />
+                        </div>
+
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal" id="close">取消</button>
+                        <button type="button" class="btn btn-primary" id="submit">提交</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+<!--<script id="container" name="content" type="text/plain">-->
+<!--        这里写你的初始化内容-->
+<!--    </script>-->
+<!-- 实例化编辑器 -->
+<script>
+    window.onload = function () {
+        sessionStorage.setItem("id", "")
+        getList()
+    }
+    var ue = UE.getEditor('container');
+    // t='<p class="p1"><span>hello</span><img src="http://localhost:8080/layer/theme/default/loading-1.gif"/></p>'
+    //     ue.addListener('ready',function () {
+    //     ue.execCommand('insertHtml',t);
+    // });
+
+    UE.Editor.prototype._bkGetActionUrl = UE.Editor.prototype.getActionUrl;
+    UE.Editor.prototype.getActionUrl = function (action) {
+        if (action == 'uploadimage' || action == 'uploadscrawl') {
+            return 'http://localhost:8080/ueditor/uploadimage';//这就是自定义的上传地址
+        } else if (action == 'uploadvideo') {
+            return '';
+        } else {
+            return this._bkGetActionUrl.call(this, action);
+        }
+    }
+    $("#file").on("change",function (e) {
+      let t=($(e.target)[0].value).split('\\')||[]
+          $("#name").val(t[t.length-1].split(".")[0])
+    })
+
+    function getHtml(str) {
+        str1 = (getDecode(str)).replace(/(\<html\>)|(\<\/html>)/gm, '')
+        str2 = str1.replace(/(\<head\>)|(\<\/head\>)/gm, '')
+        return str2.replace(/(\<body)/gm, '<div').replace(/(\<\/body\>)/gm, '</div>')
+    }
+
+    $("#submit").on('click', function () {
+        _that = this
+        _that.ue = ue
+        var options = {
+            url: "/uploaddoc",   //同action
+            type: 'post',
+            beforeSend: function (xhr) {//请求之前
+                var index = layer.load(1, {
+                    shade: [0.5, '#000'] //0.5透明度的黑色背景
+                });
+            },
+            success: function (data) {
+                if (data.html) {
+                    $("#tname").val(data.templateName)
+                    _that.ue.setContent('', false);
+                    console.log(getHtml(data.html))
+                    _that.ue.execCommand('insertHtml', getHtml(data.html));
+                    getList()
+                    $("#close").click()
+
+                } else {
+
+                    layer.alert('模板已存在', {
+                        icon: 5,
+
+                        title: "提示"
+
+                    });
+                    layer.close()
+
+                }
+
+                // _that.ue.addListener('ready', function (){
+                //
+                //     _that.ue.execCommand('insertHtml', (getDecode(data.html)).replace(/(\<html\>)|(\<\/html>)/gm,''));
+                // });
+            },
+
+            complete: function (xhr) {//请求完成
+
+                layer.closeAll('loading');
+                //询问框
+                // layer.confirm('广告主修改成功！页面将跳转到列表页。', {
+                //     btn: ['确定'] //按钮
+                // }, function () {
+                //     location.href = "adList.html";//location.href实现客户端页面的跳转
+                // });
+
+            },
+            error: function (xhr, status, msg) {
+                //alert("状态码"+status+"; "+msg)
+                layer.msg('玩命加载中..');
+
+            }
+        };
+        $("#form").ajaxSubmit(options);
+    });
+
+    // base64转字符串
+    function getDecode(str) {
+
+        return Base64.decode(str);
+    }
+
+    function getList() {///loadtemplate
+        $.get("/loadtemplate",
+            function (data, status) {
+                $('#list').children().remove()
+                var templatelist = "";
+                var idx = 0;
+                $.each(data, function () {
+                    templatelist += "<a class=\"list-item\" id='" + ('id_' + idx) + "'><img src=\"./img/word.svg\" style=\"width: 35px;padding-right: 10px;\"/>" + this + "</a>";
+                    idx++;
+                })
+                $('#list').append(templatelist);
+            });
+    }
+
+
+    // ue.ready(function () {
+    //     //设置编辑器的内容
+    //     ue.setContent('<p>hello</p>');
+    //     //获取html内容，返回: <p>hello</p>
+    //     var html = ue.getContent();
+    //     //获取纯文本内容，返回: hello
+    //     var txt = ue.getContentTxt();
+    // });
+    function getDoc(id) {
+        _that=this
+        _that.ue=ue
+        $.get("/loaddoc", {
+                template: id
+            },
+            function (data, status) {
+                console.log(data)
+                    $("#tname").val(data.templateName)
+                    _that.ue.setContent('', false);
+                    _that.ue.execCommand('insertHtml',getDecode(data.html) );
+
+
+            });
+    }
+    function downloadDoc() {
+        // $.get("/downloaddoc", {
+        //         template:  $("#tname").val()
+        //     },
+        //     function (data, status) {
+                let aLink = document.createElement("a");
+                aLink.download = "template.doc";
+                aLink.style.display = "none";
+                aLink.href = "/downloaddoc?template="+$("#tname").val();
+                document.body.appendChild(aLink);
+                aLink.click();
+                document.body.removeChild(aLink);
+
+
+            // });
+    }
+
+    function save() {
+
+        // var form_data = new FormData();
+        let name = $('#tname').val()
+        if(name.length == 0){
+            layer.msg('模板名不能为空');
+            return;
+        }
+
+        $.post("/savedoc", {
+                name: name,
+                html: ue.getContent()
+            },
+            function (data, status) {
+
+                if (data.code == 200) {
+                    getList()
+                } else {
+                    layer.msg('模板名已存在');
+                }
+
+            });
+
+
+    }
+
+    $("#list").on("click", (e) => {
+        //page
+        $("#page").text($(e.target).text())
+        $(e.target).addClass("active")
+        $(sessionStorage.getItem("id")).removeClass("active")
+        sessionStorage.setItem("id", "#" + e.target.id)
+        getDoc($(e.target).text())
+    })
+
+
+</script>
+</body>
+</html>
